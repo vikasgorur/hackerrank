@@ -1,86 +1,43 @@
 import scala.io.Source._
-import scala.collection._
 
-// Scala only provides a SortedSet, while we need a SortedList
-class SortedList {
-  var set        = mutable.SortedSet.empty[Long]
-  var duplicates = mutable.Map.empty[Long, Int]
-
-  def apply(x: Long): Boolean = { return set(x) }
-
-  def add(x: Long) {
-    val added = set.add(x)
-
-    if (!added) { duplicates(x) = duplicates.getOrElse(x, 0) + 1 }
-  }
-
-  def remove(x: Long) {
-    if (duplicates contains x) {
-      duplicates(x) -= 1
-
-      if (duplicates(x) == 0) { duplicates.remove(x) }
-    } else {
-      set.remove(x)
-    }
-  }
-
-  def head: Long = set.head
-  def last: Long = set.last
-
-  def isEmpty: Boolean = set.isEmpty
-
-  override def toString() : String = {
-    "SortedList(" + set.map { elem => 
-      if (duplicates contains elem) { 
-        Array.fill(duplicates(elem) + 1) { elem.toString }.mkString(", ") 
-      } else { 
-        elem.toString 
-      }
-    }.mkString(", ") + ")"
-  }
-}
+import java.util.PriorityQueue
+import java.util.Collections
+import java.util.Comparator
 
 object Solution {
-  // Total number of Long's we are currently holding in both lists
-  var (leftN, rightN) = (0, 0)
-
-  val left  = new SortedList
-  val right = new SortedList
+  val maxComp: Comparator[Long] = Collections.reverseOrder[Long]
+  var max: PriorityQueue[Long] = new PriorityQueue(10, maxComp)
+  var min: PriorityQueue[Long] = new PriorityQueue
 
   var notFound = false
 
   def rebalance() {
-    if (leftN < rightN) {
-      val rightHead = right.head
-      right.remove(rightHead); rightN -= 1
-      left.add(rightHead); leftN += 1
+    if (max.size < min.size) {
+      val x = min.poll
+      max.add(x)
     }
 
-    if (leftN == rightN + 2) {
-      val leftLast = left.last
-      left.remove(leftLast); leftN  -= 1
-      right.add(leftLast);   rightN += 1
+    if (max.size == min.size + 2) {
+      val x = max.poll
+      min.add(x)
     }
   }
 
   def addNumber(x: Long) {
-    if (left.isEmpty || x <= left.last) {
-      left.add(x); leftN += 1
+    if (max.isEmpty || x <= max.peek) {
+      max.add(x)
     } else {
-      right.add(x); rightN += 1
+      min.add(x)
     }
 
-    notFound = false
     rebalance()
   }
 
   def removeNumber(x: Long) {
-    if (left(x)) {
-      left.remove(x); leftN -= 1; notFound = false
-
-    } else if (right(x)) {
-      right.remove(x); rightN -= 1; notFound = false
-
+    if (max.contains(x)) {
+      max.remove(x)
+    } else if (min.contains(x)) {
+      min.remove(x)
     } else {
       notFound = true
     }
@@ -89,17 +46,20 @@ object Solution {
   }
 
   def printMedian() {
-    if (notFound || left.isEmpty) {
+    if (notFound || max.isEmpty) {
       println("Wrong!")
-    } else if (leftN == rightN) {
-      val median = (left.last + right.head) / 2
-      if ((left.last + right.head) % 2 == 0) {
-        println("%d" format median)
+    
+    } else if (max.size == min.size) {
+      val median = (max.peek + min.peek) / 2.0
+      
+      if ((max.peek + min.peek) % 2 == 0) {
+        println("%.0f" format median)
       } else {
-        println("%d.5" format median)
+        println("%.1f" format median)
       }
+    
     } else {
-      println(left.last)
+      println(max.peek)
     }
   }
 
@@ -111,6 +71,8 @@ object Solution {
         firstLine = false     // Skip the first line
       } else {
         var Array(op, num) = line.split(" ")
+
+        notFound = false
 
         op match {
           case "a" => addNumber(num.toLong)
